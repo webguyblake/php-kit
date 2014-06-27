@@ -16,8 +16,10 @@ use Prismic\Fragment\Embed;
 use Prismic\Fragment\Image;
 use Prismic\Fragment\Number;
 use Prismic\Fragment\ImageView;
+use Prismic\Fragment\Link\LinkInterface;
 use Prismic\Fragment\Link\DocumentLink;
-use Prismic\Fragment\Link\MediaLink;
+use Prismic\Fragment\Link\FileLink;
+use Prismic\Fragment\Link\ImageLink;
 use Prismic\Fragment\Link\WebLink;
 use Prismic\Fragment\StructuredText;
 use Prismic\Fragment\Text;
@@ -59,20 +61,22 @@ class Document
     /**
      * Constructs a Document object. To be used only for testing purposes, as this gets done during the unmarshalling
      *
-     * @param string $id        the ID of the document
-     * @param string $type      the type of the document
-     * @param string $href      the URL of the document in the repository's API
-     * @param array  $tags      the tags used in the document
-     * @param array  $slugs     the slugs used in the document, in the past and today; today's slug is the head
-     * @param array  $fragments all the fragments in the document
+     * @param string $id              the ID of the document
+     * @param string $type            the type of the document
+     * @param string $href            the URL of the document in the repository's API
+     * @param array  $tags            the tags used in the document
+     * @param array  $slugs           the slugs used in the document, in the past and today; today's slug is the head
+     * @param array  $linkedDocuments the linked documents, from this document
+     * @param array  $fragments       all the fragments in the document
      */
-    public function __construct($id, $type, $href, $tags, $slugs, array $fragments)
+    public function __construct($id, $type, $href, $tags, $slugs, $linkedDocuments, array $fragments)
     {
         $this->id = $id;
         $this->type = $type;
         $this->href = $href;
         $this->tags = $tags;
         $this->slugs = $slugs;
+        $this->linkedDocuments = $linkedDocuments;
         $this->fragments = $fragments;
     }
 
@@ -93,11 +97,23 @@ class Document
     }
 
     /**
+     * Returns the linked documents, from this document
+     *
+     * @api
+     *
+     * @return string the linked documents, from this document
+     */
+    public function getLinkedDocuments()
+    {
+        return $this->linkedDocuments;
+    }
+
+    /**
      * Checks if a given slug is a past or current slug of the document
      *
      * @api
-     * @param  string    $slug the slug to check
-     * @return boolean   true if the slug is a past or current slug of the document, false otherwise
+     * @param  string  $slug the slug to check
+     * @return boolean true if the slug is a past or current slug of the document, false otherwise
      */
     public function containsSlug($slug)
     {
@@ -117,7 +133,7 @@ class Document
      * you can use the getStructuredText, getColor, getDate, etc. methods.
      *
      * @api
-     * @param  string                             $field name of the fragment, with the document's type, like "product.description"
+     * @param  string                              $field name of the fragment, with the document's type, like "product.description"
      * @return \Prismic\Fragment\FragmentInterface the fragment as an object
      */
     public function get($field)
@@ -139,9 +155,9 @@ class Document
      * Checks if a given fragment exists in the document.
      *
      * @api
-     * @param  string $field name of the fragment, with the document's type, like "product.description"
-     * @return boolean   true if the fragment exists, false otherwise
-     *                      */
+     * @param  string  $field name of the fragment, with the document's type, like "product.description"
+     * @return boolean true if the fragment exists, false otherwise
+     *                       */
      public function has($field)
      {
          return array_key_exists($field, $this->fragments);
@@ -281,9 +297,9 @@ class Document
      * $doc->get($field)->asHtml($linkResolver).
      *
      * @api
-     * @param  string               $field        name of the fragment, with the document's type, like "product.description"
+     * @param  string                $field        name of the fragment, with the document's type, like "product.description"
      * @param  \Prismic\LinkResolver $linkResolver an extension of the Prismic\LinkResolver class that you taught how to turn a prismic.io document in to a URL in your application
-     * @return string               the directly usable HTML code, or null if the fragment is unset
+     * @return string                the directly usable HTML code, or null if the fragment is unset
      */
     public function getHtml($field, $linkResolver = null)
     {
@@ -300,7 +316,7 @@ class Document
      * This function also works on StructuredText fragment, and returns the first image in the fragment.
      *
      * @api
-     * @param  string                 $field name of the fragment, with the document's type, like "product.picture"
+     * @param  string                  $field name of the fragment, with the document's type, like "product.picture"
      * @return \Prismic\Fragment\Image the directly usable HTML code, or null if the fragment is unset
      */
     public function getImage($field)
@@ -351,8 +367,8 @@ class Document
      * This function also works on StructuredText fragments, to return the first Image, if the view is set to "main".
      *
      * @api
-     * @param  string                     $field name of the fragment, with the document's type, like "product.picture"
-     * @param  string                     $view  name of the view, like "small"
+     * @param  string                      $field name of the fragment, with the document's type, like "product.picture"
+     * @param  string                      $view  name of the view, like "small"
      * @return \Prismic\Fragment\ImageView the directly usable object symbolizing the view
      */
     public function getImageView($field, $view = null)
@@ -395,7 +411,7 @@ class Document
      * and null of the fragment is of the wrong type, or if it doesn't exist.
      *
      * @api
-     * @param  string                          $field name of the fragment, with the document's type, like "product.description"
+     * @param  string                           $field name of the fragment, with the document's type, like "product.description"
      * @return \Prismic\Fragment\StructuredText the directly usable object, or null if the fragment is of the wrong type or unset
      */
     public function getStructuredText($field)
@@ -409,12 +425,30 @@ class Document
     }
 
     /**
+     * Returns the Link fragment as a manipulable object,
+     * and null of the fragment is of the wrong type, or if it doesn't exist.
+     *
+     * @api
+     * @param  string                  $field name of the fragment, with the document's type, like "product.gallery"
+     * @return \Prismic\Fragment\Link\LinkInterface the directly usable object, or null if the fragment is of the wrong type or unset
+     */
+    public function getLink($field)
+    {
+        $fragment = $this->get($field);
+        if (isset($fragment) && ($fragment instanceof LinkInterface)) {
+            return $fragment;
+        }
+
+        return null;
+    }
+
+    /**
      * Returns the Group fragment as a manipulable object,
      * and null of the fragment is of the wrong type, or if it doesn't exist.
      * This is the point of entry to then loop or search through the elements inside the Group fragment.
      *
      * @api
-     * @param  string                 $field name of the fragment, with the document's type, like "product.gallery"
+     * @param  string                  $field name of the fragment, with the document's type, like "product.gallery"
      * @return \Prismic\Fragment\Group the directly usable object, or null if the fragment is of the wrong type or unset
      */
     public function getGroup($field)
@@ -435,7 +469,7 @@ class Document
      *
      * @api
      * @param  \Prismic\LinkResolver $linkResolver an extension of the Prismic\LinkResolver class that you taught how to turn a prismic.io document in to a URL in your application
-     * @return string               the directly usable HTML code
+     * @return string                the directly usable HTML code
      */
     public function asHtml($linkResolver = null)
     {
@@ -523,7 +557,7 @@ class Document
     /**
      * Parses a given fragment. Not meant to be used except for testing.
      *
-     * @param  \stdClass                          $json the json bit retrieved from the API that represents any fragment.
+     * @param  \stdClass                           $json the json bit retrieved from the API that represents any fragment.
      * @return \Prismic\Fragment\FragmentInterface the manipulable object for that fragment.
      */
     public static function parseFragment($json)
@@ -573,7 +607,11 @@ class Document
             }
 
             if ($json->type === "Link.file") {
-                return MediaLink::parse($json->value);
+                return FileLink::parse($json->value);
+            }
+
+            if ($json->type === "Link.image") {
+                return ImageLink::parse($json->value);
             }
 
             if ($json->type === "StructuredText") {
@@ -591,7 +629,7 @@ class Document
     /**
      * Parses a given document. Not meant to be used except for testing.
      *
-     * @param  \stdClass        $json the json bit retrieved from the API that represents a document.
+     * @param  \stdClass         $json the json bit retrieved from the API that represents a document.
      * @return \Prismic\Document the manipulable object for that document.
      */
     public static function parse(\stdClass $json)
@@ -615,7 +653,12 @@ class Document
             }
         }
 
-        return new Document($json->id, $json->type, $json->href, $json->tags, $json->slugs, $fragments);
+        $linkedDocuments = array();
+        if (isset($json->linked_documents)) {
+            $linkedDocuments = array_map(function ($linkedDoc) { return LinkedDocument::parse($linkedDoc);  }, $json->linked_documents);
+        }
+
+        return new Document($json->id, $json->type, $json->href, $json->tags, $json->slugs, $linkedDocuments, $fragments);
     }
 }
 

@@ -44,13 +44,13 @@ class DocumentLink implements LinkInterface
     private $isBroken;
 
     /**
-     * Constructs an document link.
+     * Constructs a document link.
      *
-     * @param string   $id        the ID of the linked document
-     * @param string   $type      the type of the linked document
-     * @param array    $tags      an array of strings which are the document's tags
-     * @param string   $slug      the current slug of the document
-     * @param boolean  $isBroken  returns true if the link is towards a document that is not live, for instance
+     * @param string  $id       the ID of the linked document
+     * @param string  $type     the type of the linked document
+     * @param array   $tags     an array of strings which are the document's tags
+     * @param string  $slug     the current slug of the document
+     * @param boolean $isBroken returns true if the link is towards a document that is not live, for instance
      */
     public function __construct($id, $type, $tags, $slug, $isBroken)
     {
@@ -69,22 +69,22 @@ class DocumentLink implements LinkInterface
      *
      * @api
      *
-     * @param \Prismic\LinkResolver  $linkResolver  the link resolver
+     * @param \Prismic\LinkResolver $linkResolver the link resolver
      *
      * @return string the HTML version of the link
      */
     public function asHtml($linkResolver)
     {
-        return '<a href="' . $linkResolver($this) . '">' . $this->slug . '</a>';
+        return '<a href="' . $this->getUrl($linkResolver) . '">' . $this->slug . '</a>';
     }
 
     /**
      * Parses a proper bit of unmarshaled JSON into a DocumentLink object.
      * This is used internally during the unmarshaling of API calls.
      *
-     * @param \stdClass  $json  the raw JSON that needs to be transformed into native objects.
+     * @param \stdClass $json the raw JSON that needs to be transformed into native objects.
      *
-     * @return DocumentLink  the new object that was created form the JSON.
+     * @return DocumentLink the new object that was created form the JSON.
      */
     public static function parse($json)
     {
@@ -95,6 +95,23 @@ class DocumentLink implements LinkInterface
             $json->document->slug,
             $json->isBroken
         );
+    }
+
+    /**
+     * Returns the URL of the document we're linking to.
+     * The linkResolver will be needed in this case, as we're linking to a document link,
+     * which should be a URL of your website.
+     * Read more about the link resolver at the very end of prismic.io's documentation.
+     *
+     * @api
+     *
+     * @param \Prismic\LinkResolver $linkResolver the link resolver (read prismic.io's API documentation to learn more)
+     *
+     * @return string the URL of the resource we're linking to online
+     */
+    public function getUrl($linkResolver = null)
+    {
+        return $linkResolver($this);
     }
 
     /**
