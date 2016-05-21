@@ -120,7 +120,6 @@ class LesBonnesChosesTest extends \PHPUnit_Framework_TestCase
     {
         $api = Api::get(self::$testRepository);
         $masterRef = $api->master()->getRef();
-
         $results = $api->forms()->products
             ->orderings('[my.product.price]')
             ->after('UlfoxUnM0wkXYXbI')
@@ -130,7 +129,6 @@ class LesBonnesChosesTest extends \PHPUnit_Framework_TestCase
         $this->assertEquals(count($results), 10);
         $this->assertEquals($results[0]->getId(), "UlfoxUnM0wkXYXbG");
     }
-
 
     public function testFetchLinks()
     {
